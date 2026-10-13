@@ -1,6 +1,6 @@
 import json
 from io import BytesIO
-
+import document_parser
 import pytest
 from fastapi import HTTPException
 from pypdf import PdfWriter
@@ -93,4 +93,65 @@ def test_password_protected_pdf_returns_400():
     assert error.value.status_code == 400
     assert error.value.detail == (
         "Password-protected PDFs are not supported."
+    )
+
+def test_deeply_nested_json_returns_400():
+    content = b"[" * 2000 + b"0" + b"]" * 2000
+
+    with pytest.raises(HTTPException) as error:
+        parse_document(content, "document.json")
+
+    assert error.value.status_code == 400
+    assert error.value.detail == "Document JSON is nested too deeply."
+
+
+def test_json_preserves_null_and_false_values():
+    data = {
+        "provider": "AWS",
+        "retention_days": None,
+        "enabled": False,
+        "count": 0,
+    }
+
+    documents = parse_document(
+        json.dumps(data).encode(),
+        "document.json",
+    )
+
+    assert json.loads(documents[0].page_content) == data
+
+def test_pdf_page_limit_returns_413(monkeypatch):
+    monkeypatch.setattr(document_parser, "MAX_PDF_PAGES", 1)
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=612, height=792)
+    writer.add_blank_page(width=612, height=792)
+
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    with pytest.raises(HTTPException) as error:
+        parse_document(buffer.getvalue(), "document.pdf")
+
+    assert error.value.status_code == 413
+    assert error.value.detail == (
+        "PDF exceeds the 200-page processing limit."
+    )
+
+
+def test_json_extracted_text_limit_returns_413(monkeypatch):
+    monkeypatch.setattr(
+        document_parser,
+        "MAX_EXTRACTED_CHARACTERS",
+        20,
+    )
+
+    content = json.dumps({"text": "a" * 100}).encode()
+
+    with pytest.raises(HTTPException) as error:
+        parse_document(content, "document.json")
+
+    assert error.value.status_code == 413
+    assert error.value.detail == (
+        "Document exceeds the extracted-text limit."
     )

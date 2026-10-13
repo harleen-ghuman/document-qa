@@ -165,6 +165,7 @@ def test_answers_every_question_in_order(monkeypatch):
         async def ainvoke(self, messages):
             model_calls.append(messages)
             return SimpleNamespace(
+                supporting_passage_ids=[1],
                 answer=f"Answer {len(model_calls)}"
             )
 
@@ -267,7 +268,9 @@ def test_keyword_evidence_reaches_model(monkeypatch):
             assert "Notify customers without undue delay." in (
                 messages[1].content
             )
-            return SimpleNamespace(answer="Without undue delay.")
+            return SimpleNamespace(
+                supporting_passage_ids=[1],
+                answer="Without undue delay.",)
 
     monkeypatch.setattr(
         "qa_service.ChatOpenAI",
@@ -283,4 +286,70 @@ def test_keyword_evidence_reaches_model(monkeypatch):
     assert result["answer"] == "Without undue delay."
     assert result["retrieved_evidence"][0]["text"] == (
         "Notify customers without undue delay."
+    )
+
+def test_deeply_nested_questions_json_returns_400():
+    content = b"[" * 2000 + b"0" + b"]" * 2000
+
+    response = upload(content)
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Questions JSON is nested too deeply."
+    )
+
+def test_chunk_limit_rejects_before_embedding(monkeypatch):
+    monkeypatch.setattr(qa_service, "MAX_CHUNKS", 1)
+
+    class FakeSplitter:
+        def split_documents(self, documents):
+            return [
+                Document(page_content="First chunk."),
+                Document(page_content="Second chunk."),
+            ]
+
+    monkeypatch.setattr(
+        qa_service,
+        "RecursiveCharacterTextSplitter",
+        lambda **kwargs: FakeSplitter(),
+    )
+
+    def unexpected_embeddings(**kwargs):
+        raise AssertionError(
+            "Embedding client must not be created for an oversized document."
+        )
+
+    monkeypatch.setattr(
+        qa_service,
+        "OpenAIEmbeddings",
+        unexpected_embeddings,
+    )
+
+    response = upload(
+        json.dumps({"questions": ["Which provider?"]}).encode()
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == (
+        "Document exceeds the 1000-chunk processing limit."
+    )
+
+def test_processing_deadline_returns_504(monkeypatch):
+    import asyncio
+
+    monkeypatch.setattr(main, "PROCESSING_TIMEOUT_SECONDS", 0.1)
+
+    async def stalled_answer(*args, **kwargs):
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(main, "answer_questions", stalled_answer)
+
+    response = upload(
+        json.dumps({"questions": ["Which provider?"]}).encode()
+    )
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == (
+        "Document processing timed out. "
+        "Try a smaller document or fewer questions."
     )

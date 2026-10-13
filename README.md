@@ -4,8 +4,8 @@ A document question-answering application with a FastAPI backend and React/TypeS
 
 ## Requirements
 
-- Docker for running the complete application.
-- An OpenAI API key for live requests.
+- Docker to run the complete application.
+- An OpenAI API key.
 - For local development: Python 3.14 and Node.js/npm.
 
 ## Configuration
@@ -23,18 +23,14 @@ docker build -t zania-document-qa .
 docker run --rm --name zania-qa --env-file .env -p 127.0.0.1:8001:8000 zania-document-qa
 ```
 
-Open:
+- React UI: http://127.0.0.1:8001/
+- Interactive API: http://127.0.0.1:8001/docs
 
-- http://127.0.0.1:8001/ — React interface.
-- http://127.0.0.1:8001/docs — interactive API.
-
-The image builds the React frontend and serves it alongside FastAPI. Qdrant runs in memory; no separate database server is required.
+Docker builds and serves the frontend alongside FastAPI. No separate Qdrant server is required.
 
 ## Local development
 
-### Backend
-
-From the project root:
+Start the backend from the project root:
 
 ```bash
 python3.14 -m venv .venv
@@ -43,11 +39,7 @@ python -m pip install -r requirements.txt
 python -m uvicorn main:app --reload
 ```
 
-The API is available at http://127.0.0.1:8000/docs.
-
-### Frontend
-
-In a separate terminal:
+Start the frontend in another terminal:
 
 ```bash
 cd frontend
@@ -55,22 +47,15 @@ npm ci
 npm run dev
 ```
 
-Open the URL printed by Vite, normally http://localhost:5173. The development proxy forwards `/api` requests to FastAPI on port 8000.
+Open the URL printed by Vite. Its development proxy forwards `/api` requests to FastAPI on port 8000.
 
-## Using the interface
+## Usage
 
-1. Upload a PDF or JSON source document.
-2. Type one question or upload a questions JSON file.
-3. Click **Get answers**.
-4. Expand **View retrieved sources** to inspect evidence.
-
-Sources are included in the same response; expanding them does not make another AI request.
+Upload a PDF or JSON source document, then type one question or upload a questions JSON file. Answers appear with expandable retrieved sources. Expanding sources does not make another AI request.
 
 ## API
 
 ### GET /api/health
-
-Returns:
 
 ```json
 {"status": "UP"}
@@ -78,10 +63,10 @@ Returns:
 
 ### POST /api/answer
 
-Upload two multipart files:
+Accepts two multipart files:
 
-- `questions_file`: a JSON object containing a non-empty `questions` list.
-- `document_file`: a JSON or PDF document to search.
+- `questions_file`: a JSON object containing a non-empty list of question strings.
+- `document_file`: a JSON or PDF source document.
 
 Example questions file:
 
@@ -94,7 +79,7 @@ Example questions file:
 }
 ```
 
-Example JSON document:
+Example JSON source document:
 
 ```json
 {
@@ -103,7 +88,7 @@ Example JSON document:
 }
 ```
 
-Example request against the Docker application:
+Example request:
 
 ```bash
 curl -X POST http://127.0.0.1:8001/api/answer \
@@ -111,9 +96,9 @@ curl -X POST http://127.0.0.1:8001/api/answer \
   -F "document_file=@report.pdf"
 ```
 
-Replace `report.pdf` with your document's path. For the local backend, use port 8000.
+Replace `report.pdf` with your source document's path. Use port 8000 for the local backend.
 
-By default, the response contains ordered question-answer pairs:
+The default response contains ordered question-answer pairs:
 
 ```json
 {
@@ -126,7 +111,7 @@ By default, the response contains ordered question-answer pairs:
 }
 ```
 
-Set `include_evidence=true` to also return `chunk_count` and `retrieved_evidence` containing source filenames, passage text, and PDF page numbers where available:
+Set `include_evidence=true` to also return `chunk_count` and `retrieved_evidence`, including source filenames, passage text, and PDF page numbers where available:
 
 ```bash
 curl -X POST "http://127.0.0.1:8001/api/answer?include_evidence=true" \
@@ -134,43 +119,43 @@ curl -X POST "http://127.0.0.1:8001/api/answer?include_evidence=true" \
   -F "document_file=@report.pdf"
 ```
 
-In `/docs`, enable `include_evidence` before executing. Null fields are omitted.
+Null fields are omitted.
 
 ## How it works
 
-1. Validate uploads and parse the document in a worker thread.
-2. Split content into overlapping chunks.
-3. Generate embeddings with `text-embedding-3-small` and build an in-memory Qdrant index.
-4. Combine semantic retrieval for the original and rewritten questions with BM25-style keyword retrieval.
-5. Expand PDF matches to original pages, remove duplicates, and retain up to six evidence passages.
-6. Generate a structured answer with supporting quotations using `gpt-4o-mini`.
+1. Validate uploads and JSON nesting, then parse the document in a worker thread.
+2. Split content into overlapping chunks and index embeddings in Qdrant.
+3. Combine semantic retrieval, question rewriting, and BM25-style keyword search.
+4. Expand PDF matches to pages and apply evidence-size limits.
+5. Generate structured answers with `gpt-4o-mini` and validate supporting passage references.
+6. Perform at most one additional review when references are invalid or the model abstains despite available passages.
 
-Up to three questions run concurrently per request. Results remain in input order, and outstanding question tasks are cancelled if one fails.
+Embeddings use `text-embedding-3-small`. Up to three questions run concurrently per request, with results returned in input order.
 
-Supporting quotations are internal to generation. Retrieved passages are available in evidence mode and are not independently verified claim-level citations.
+Passage-reference validation checks that referenced passages exist. It does not independently verify that every answer claim is supported.
 
 ## Project structure
 
-- `frontend/`: React/TypeScript upload interface and results display.
-- `main.py`: HTTP routes, upload validation, frontend serving, and request logging.
-- `qa_service.py`: indexing, retrieval, generation, and bounded concurrency.
-- `document_parser.py`: JSON and PDF parsing.
+- `frontend/`: React/TypeScript interface.
+- `main.py`: routes, validation, processing deadline, frontend serving, and logging.
+- `qa_service.py`: indexing, retrieval, generation, and concurrency.
+- `document_parser.py`: JSON/PDF parsing and extraction limits.
+- `json_validation.py`: JSON nesting checks.
 - `keyword_search.py`: keyword ranking.
-- `schemas.py`: response and internal generation models.
-- `tests/`: parser, retrieval, concurrency, and mocked API tests.
-- `Dockerfile`: frontend build and application packaging.
+- `grounding.py`: passage-reference validation and bounded review.
+- `schemas.py`: API and generation models.
+- `tests/`: unit and mocked API tests.
+- `Dockerfile`: application build and packaging.
 
 ## Tests
-
-From the project root:
 
 ```bash
 python -m pytest -q
 ```
 
-All 31 backend tests passed. Tests cover input validation, upload limits, PDF parsing errors, timeout handling, keyword retrieval, evidence delivery, response fields, concurrency limits, and result ordering.
+All 50 backend test cases passed. Coverage includes parsing, invalid inputs, processing limits, deadlines, retrieval, response fields, concurrency, and passage-reference validation.
 
-Provider calls are mocked in automated tests; these tests do not measure real-model answer accuracy. Pinned Python dependencies were also verified in a fresh virtual environment.
+Provider calls are mocked; automated tests do not measure real-model answer accuracy.
 
 Frontend checks:
 
@@ -180,22 +165,24 @@ npm run build
 npm run lint
 ```
 
-Both checks passed. Docker startup, frontend serving, JSON request logging, and live JSON document answering were also verified.
+## Limits and error handling
 
-## Limits and errors
+- Up to 20 questions, each at most 1,000 characters.
+- Questions file: 100,000 bytes.
+- Source document: 10,000,000 bytes.
+- PDF: up to 200 pages.
+- Extracted text: 500,000 characters.
+- Index: up to 1,000 chunks.
+- JSON nesting: up to 64 levels.
+- Evidence: up to six passages, 6,000 characters per passage and 24,000 characters total.
+- Processing deadline: 120 seconds after uploads are read.
 
-- Maximum 20 questions per request.
-- Maximum 1,000 characters per question.
-- Questions upload limit: 100,000 bytes.
-- Document upload limit: 10,000,000 bytes.
-- Provider timeouts return HTTP 504.
-- Provider connection or rate/quota failures return HTTP 503.
-- Other provider API errors return HTTP 502.
+Invalid inputs return 400 or 415; oversized inputs return 413. Processing/provider timeouts return 504, provider connection or quota failures return 503, and provider or reference-validation failures return 502.
 
-Requests produce JSON logs with request IDs, HTTP status codes, and duration in milliseconds. Responses include an `X-Request-ID` header. Uploaded content and API keys are not included in these request logs.
+JSON request logs include request IDs, status codes, and duration. Responses include `X-Request-ID`. Request logs exclude document content and API keys.
 
 ## Evaluation and limitations
 
-Manually evaluated against the OneTrust SOC 2 report, including a 19-question run. Some answers remain incomplete or overstate the evidence; structured output does not guarantee accuracy.
+Manually evaluated against the OneTrust SOC 2 report. Answers may omit relevant details; passage-reference validation does not guarantee factual accuracy or completeness.
 
-The index is rebuilt per request. Question concurrency is limited per request, not globally. Document content is sent to OpenAI, incurring usage costs. Authentication, persistent indexing, and an overall request deadline are not implemented.
+Indexes are rebuilt per request. Concurrency limits apply per request, not globally. A parsing thread may continue after the processing deadline. Document content is sent to OpenAI and incurs usage costs. Authentication and persistent indexing are not implemented.

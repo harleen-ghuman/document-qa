@@ -18,18 +18,18 @@ class AnswerResponse(BaseModel):
     results: list[QuestionAnswer]
 
 class GroundedAnswer(BaseModel):
-    supporting_quotes: list[str] = Field(
+    supporting_passage_ids: list[int] = Field(
+        max_length=6,
         description=(
-            "Up to three short exact quotations from the supplied passages "
-            "that answer the question wholly or partially. Include relevant "
-            "policies or event-based timing even without a numeric duration. "
-            "Use an empty list only when no relevant support exists."
-        )
+            "IDs of supplied passages supporting the answer. "
+            "For passages labeled P1, P2, etc., return integers 1, 2, etc. "
+            "Use an empty list when no passage answers the question."
+        ),
     )
     answer: str = Field(
         description=(
-            "Answer supported by those quotations. State what is unspecified. "
-            "Distinguish a missing numeric duration from missing policy "
-            "information. Do not invent facts."
-        )
+            "Answer only from the supporting passages. Preserve qualifications, "
+            "relationships, timing conditions, and contradictions. "
+            "Identify unsupported parts without inventing facts."
+        ),
     )

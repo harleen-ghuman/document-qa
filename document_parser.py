@@ -1,22 +1,30 @@
 import json
 from io import BytesIO
-
+from json_validation import validate_json_depth
 from fastapi import HTTPException
 from langchain_core.documents import Document
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 
+MAX_PDF_PAGES = 200
+MAX_EXTRACTED_CHARACTERS = 500_000
 
 def parse_document(content: bytes, filename: str) -> list[Document]:
     extension = filename.lower()
 
     if extension.endswith(".json"):
+        validate_json_depth(content, "Document")
         try:
             data = json.loads(content)
         except (json.JSONDecodeError, UnicodeDecodeError):
             raise HTTPException(
                 status_code=400,
                 detail="Document file must contain valid JSON.",
+            )
+        except RecursionError:
+            raise HTTPException(
+                status_code=400,
+                detail="Document JSON is nested too deeply.",
             )
 
         if not isinstance(data, (dict, list)) or not data:
@@ -46,10 +54,26 @@ def parse_document(content: bytes, filename: str) -> list[Document]:
                     detail="Password-protected PDFs are not supported.",
                 )
 
+            if len(reader.pages) > MAX_PDF_PAGES:
+                raise HTTPException(
+                    status_code=413,
+                    detail="PDF exceeds the 200-page processing limit.",
+                )
+
+            extracted_characters = 0
+
             documents = []
 
             for page_number, page in enumerate(reader.pages, start=1):
                 text = page.extract_text() or ""
+
+                extracted_characters += len(text)
+
+                if extracted_characters > MAX_EXTRACTED_CHARACTERS:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="Document exceeds the extracted-text limit.",
+                    )
 
                 if text.strip():
                     documents.append(
@@ -72,6 +96,13 @@ def parse_document(content: bytes, filename: str) -> list[Document]:
         raise HTTPException(
             status_code=415,
             detail="Document must be a PDF or JSON file.",
+        )
+    if sum(len(doc.page_content) for doc in documents) > (
+            MAX_EXTRACTED_CHARACTERS
+    ):
+        raise HTTPException(
+            status_code=413,
+            detail="Document exceeds the extracted-text limit.",
         )
 
     if not documents:

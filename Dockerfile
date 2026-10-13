@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 RUN useradd --create-home appuser
 
-COPY main.py qa_service.py document_parser.py keyword_search.py schemas.py ./
+COPY main.py qa_service.py document_parser.py keyword_search.py schemas.py json_validation.py grounding.py ./
 COPY --from=frontend-build /frontend/dist ./frontend/dist
 
 USER appuser

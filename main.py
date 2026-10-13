@@ -3,6 +3,7 @@ import logging
 import time
 import uuid
 import asyncio
+from json_validation import validate_json_depth
 from pathlib import Path
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -77,6 +78,7 @@ MAX_QUESTIONS = 20
 MAX_QUESTION_LENGTH = 1000
 MAX_QUESTIONS_BYTES = 100_000
 MAX_DOCUMENT_BYTES = 10_000_000
+PROCESSING_TIMEOUT_SECONDS = 120
 
 
 @app.exception_handler(APITimeoutError)
@@ -133,12 +135,19 @@ async def answer(
             detail="Questions file exceeds the 100 KB limit.",
         )
 
+    validate_json_depth(content, "Questions")
+
     try:
         data = json.loads(content)
     except (json.JSONDecodeError, UnicodeDecodeError):
         raise HTTPException(
             status_code=400,
             detail="Questions file must contain valid JSON.",
+        )
+    except RecursionError:
+        raise HTTPException(
+            status_code=400,
+            detail="Document JSON is nested too deeply.",
         )
 
     if not isinstance(data, dict):
@@ -182,17 +191,27 @@ async def answer(
             detail="Document exceeds the 10 MB limit.",
         )
 
-    documents = await asyncio.to_thread(
-        parse_document,
-        content=document_content,
-        filename=document_file.filename or "",
-    )
+    try:
+        async with asyncio.timeout(PROCESSING_TIMEOUT_SECONDS):
+            documents = await asyncio.to_thread(
+                parse_document,
+                content=document_content,
+                filename=document_file.filename or "",
+            )
 
-    result = await answer_questions(
-        documents=documents,
-        questions=questions,
-        source_name=document_file.filename or "uploaded-document",
-    )
+            result = await answer_questions(
+                documents=documents,
+                questions=questions,
+                source_name=document_file.filename or "uploaded-document",
+            )
+    except TimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                "Document processing timed out. "
+                "Try a smaller document or fewer questions."
+            ),
+        )
 
     if not include_evidence:
         result.pop("chunk_count", None)
