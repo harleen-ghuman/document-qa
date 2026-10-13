@@ -34,6 +34,11 @@ def keyword_search(
 
     tokens = [tokenize(doc.page_content) for doc in documents]
     counts = [Counter(words) for words in tokens]
+    document_frequencies = Counter(
+        word
+        for counts_for_document in counts
+        for word in counts_for_document
+    )
     average_length = sum(map(len, tokens)) / len(tokens) or 1
     scores = []
 
@@ -42,9 +47,7 @@ def keyword_search(
 
         for word in query:
             frequency = counts_for_document[word]
-            document_frequency = sum(
-                word in count for count in counts
-            )
+            document_frequency = document_frequencies[word]
 
             inverse_frequency = math.log(
                 1 + (
