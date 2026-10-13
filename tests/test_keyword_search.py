@@ -1,0 +1,59 @@
+from langchain_core.documents import Document
+
+from keyword_search import keyword_search
+
+
+def test_empty_documents_return_no_matches():
+    assert keyword_search([], "cloud provider") == []
+
+
+def test_unrelated_question_returns_no_matches():
+    documents = [
+        Document(page_content="The service is hosted on AWS.")
+    ]
+
+    assert keyword_search(documents, "temperature humidity") == []
+
+
+def test_relevant_document_ranks_first_and_respects_limit():
+    relevant = Document(page_content="Incident notification policy.")
+    unrelated = Document(page_content="Employee vacation policy.")
+
+    matches = keyword_search(
+        [unrelated, relevant],
+        "incident notification",
+        k=1,
+    )
+
+    assert matches == [relevant]
+
+
+def test_sla_expansion_finds_full_phrase():
+    relevant = Document(
+        page_content="The service level agreement defines notification."
+    )
+    unrelated = Document(page_content="The office opens on Monday.")
+
+    matches = keyword_search(
+        [unrelated, relevant],
+        "SLA",
+        k=1,
+    )
+
+    assert matches == [relevant]
+
+
+def test_search_preserves_source_and_page_metadata():
+    document = Document(
+        page_content="Customer data is encrypted.",
+        metadata={"source": "report.pdf", "page": 7},
+    )
+
+    matches = keyword_search([document], "encrypted")
+
+    assert len(matches) == 1
+    assert matches[0].metadata == {
+        "source": "report.pdf",
+        "page": 7,
+    }
+    assert matches[0].page_content == "Customer data is encrypted."
