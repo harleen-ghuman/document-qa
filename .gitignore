@@ -1,0 +1,9 @@
+.venv/
+.env
+.idea/
+__pycache__/
+.pytest_cache/
+*.pdf
+.env.*
+!.env.example
+.DS_Store

@@ -1,0 +1,8 @@
+{
+  "questions": [
+    "Which cloud providers does the company rely on?",
+    "What are the primary and backup hosting regions?",
+    "What is the company's incident notification SLA?",
+    "How long does the company retain customer data?"
+  ]
+}
