@@ -3,6 +3,7 @@ import logging
 import time
 import uuid
 import asyncio
+from langchain_core.callbacks import get_usage_metadata_callback
 from json_validation import validate_json_depth
 from pathlib import Path
 from fastapi.responses import FileResponse
@@ -54,25 +55,40 @@ async def log_requests(request: Request, call_next):
     started = time.perf_counter()
     status_code = 500
 
-    try:
-        response = await call_next(request)
-        status_code = response.status_code
-        response.headers["X-Request-ID"] = request_id
-        return response
-    finally:
-        request_logger.info(
-            json.dumps({
-                "event": "http_request",
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": status_code,
-                "duration_ms": round(
-                    (time.perf_counter() - started) * 1000,
-                    2,
+    with get_usage_metadata_callback() as usage:
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            response.headers["X-Request-ID"] = request_id
+            return response
+        finally:
+            token_usage = list(usage.usage_metadata.values())
+
+            request_logger.info(
+                json.dumps({
+                    "event": "http_request",
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status_code": status_code,
+                    "duration_ms": round(
+                        (time.perf_counter() - started) * 1000,
+                        2,
+                        ),
+                    "prompt_tokens": sum(
+                        item.get("input_tokens", 0)
+                        for item in token_usage
                     ),
-            })
-        )
+                    "completion_tokens": sum(
+                        item.get("output_tokens", 0)
+                        for item in token_usage
+                    ),
+                    "total_tokens": sum(
+                        item.get("total_tokens", 0)
+                        for item in token_usage
+                    ),
+                })
+            )
 
 MAX_QUESTIONS = 20
 MAX_QUESTION_LENGTH = 1000

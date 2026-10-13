@@ -1,6 +1,9 @@
 from itertools import zip_longest
 import asyncio
 import os
+import json
+import logging
+import time
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
@@ -17,6 +20,7 @@ MAX_CONCURRENT_QUESTIONS = 3
 MAX_CHUNKS = 1000
 MAX_CONTEXT_CHARACTERS = 24_000
 MAX_PASSAGE_CHARACTERS = 6_000
+qa_logger = logging.getLogger("zania.requests")
 
 
 def limit_evidence(matches: list[Document]) -> list[Document]:
@@ -164,6 +168,7 @@ async def answer_questions(
 
     async def answer_one(question: str):
         question = question.strip()
+        retrieval_started = time.perf_counter()
 
         matches = await vector_store.asimilarity_search(
             question,
@@ -254,12 +259,28 @@ async def answer_questions(
             ),
         ]
 
+        retrieval_ms = (
+            time.perf_counter() - retrieval_started
+        ) * 1000
+        generation_started = time.perf_counter()
+
         response = await generate_verified_answer(
             answer_model,
             messages,
             matches,
             question,
         )
+
+        generation_ms = (
+            time.perf_counter() - generation_started
+        ) * 1000
+
+        qa_logger.info(json.dumps({
+            "event": "question_answered",
+            "retrieval_ms": round(retrieval_ms, 2),
+            "generation_ms": round(generation_ms, 2),
+            "passage_count": len(matches),
+        }))
 
         citations = []
         seen_citations = set()

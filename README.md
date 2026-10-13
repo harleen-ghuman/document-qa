@@ -15,7 +15,8 @@ cp .env.example .env
 ```
 
 Set `OPENAI_API_KEY` in `.env`. Do not commit API keys.
-Query rewriting is disabled by default to reduce latency and API cost. Set ENABLE_QUERY_REWRITE=true in .env to enable an additional retrieval query.
+
+Query rewriting is disabled by default to reduce latency and API cost. Set `ENABLE_QUERY_REWRITE=true` in `.env` to enable an extra LLM call per question and an additional retrieval query when the rewritten question differs. Restart the backend after changing configuration.
 
 ## Run with Docker
 
@@ -99,7 +100,7 @@ curl -X POST http://127.0.0.1:8001/api/answer \
 
 Replace `report.pdf` with your source document's path. Use port 8000 for the local backend.
 
-The default response contains ordered question-answer pairs:
+The default response contains ordered question-answer pairs and citations identifying supporting source files and PDF pages where available:
 
 ```json
 {
@@ -121,13 +122,13 @@ curl -X POST "http://127.0.0.1:8001/api/answer?include_evidence=true" \
   -F "document_file=@report.pdf"
 ```
 
-Null fields are omitted.
+Null fields are omitted. Citations identify passages referenced by the answer, with duplicate source/page pairs removed. When the model finds no supporting passage, the answer is `Not found in the provided document.` and `citations` is an empty list. Full retrieved evidence may also include passages that were not cited.
 
 ## How it works
 
 1. Validate uploads and JSON nesting, then parse the document in a worker thread.
 2. Split content into overlapping chunks and index embeddings in Qdrant.
-3. Combine semantic retrieval, question rewriting, and BM25-style keyword search.
+3. Combine semantic retrieval and BM25-style keyword search, with optional question rewriting using the same chat-model client.
 4. Expand PDF matches to pages and apply evidence-size limits.
 5. Generate structured answers with `gpt-4o-mini` and validate supporting passage references.
 6. Perform at most one additional review when references are invalid or the model abstains despite available passages.
@@ -146,6 +147,7 @@ Passage-reference validation checks that referenced passages exist. It does not 
 - `keyword_search.py`: keyword ranking.
 - `grounding.py`: passage-reference validation and bounded review.
 - `schemas.py`: API and generation models.
+- `samples/`: example source documents and questions files.
 - `tests/`: unit and mocked API tests.
 - `Dockerfile`: application build and packaging.
 
@@ -181,7 +183,11 @@ npm run lint
 
 Invalid inputs return 400 or 415; oversized inputs return 413. Processing/provider timeouts return 504, provider connection or quota failures return 503, and provider or reference-validation failures return 502.
 
-JSON request logs include request IDs, status codes, and duration. Responses include `X-Request-ID`. Request logs exclude document content and API keys.
+JSON request logs include request IDs, status codes, HTTP duration, and prompt, completion, and total chat-model token counts. Responses include `X-Request-ID`. Token counts include rewriting and review calls when used; embedding tokens are not included.
+
+Each successfully answered question also produces a `question_answered` log with retrieval duration, generation duration, and passage count. Retrieval timing includes optional rewriting and context preparation. Generation timing includes any review call. These durations exclude initial document parsing and indexing. Questions run concurrently, so their durations should not be summed to estimate request duration.
+
+Logs exclude document content, question text, and API keys.
 
 ## Evaluation and limitations
 
