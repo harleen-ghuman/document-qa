@@ -8,9 +8,15 @@ type Evidence = {
   text: string
 }
 
+type Citation = {
+  source: string
+  page?: number
+}
+
 type Answer = {
   question: string
   answer: string
+  citations?: Citation[]
   retrieved_evidence?: Evidence[]
 }
 
@@ -93,7 +99,7 @@ export default function App() {
   return (
       <main className="container">
         <header>
-          <span className="badge">Zania · Document QA</span>
+          <span className="badge">Zania · Document Q&A</span>
           <h1>Ask your document.</h1>
           <p>Upload a PDF or JSON document and get answers with evidence.</p>
         </header>
@@ -148,7 +154,8 @@ export default function App() {
                       }
                   />
                   <p className="hint">
-                    Use a JSON object with a “questions” list, up to 20 questions.
+                    Use a JSON object with a “questions” list or a bare list of strings.
+                    Maximum 20 questions.
                   </p>
                 </>
             )}
@@ -161,7 +168,7 @@ export default function App() {
 
         <div role="status" aria-live="polite">
           {loading && (
-              <p>Searching the document. Multiple questions may take a few minutes.</p>
+              <p>Searching the document…</p>
           )}
           {!loading && results.length > 0 && (
               <p>{results.length} answer(s) returned. Review sources to verify them.</p>
@@ -175,6 +182,19 @@ export default function App() {
               <article className="panel" key={index}>
                 <h2>{result.question}</h2>
                 <p className="answer">{result.answer}</p>
+                {!!result.citations?.length && (
+                    <div className="citations">
+                      <strong>Cited sources:</strong>
+                      <ul>
+                        {result.citations.map((citation, citationIndex) => (
+                            <li key={citationIndex}>
+                              {citation.source}
+                              {citation.page != null && ` · Page ${citation.page}`}
+                            </li>
+                        ))}
+                      </ul>
+                    </div>
+                )}
 
                 {!!result.retrieved_evidence?.length && (
                     <details>

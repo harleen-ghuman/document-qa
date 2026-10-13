@@ -29,8 +29,8 @@ def keyword_search(
 
     query = tokenize(question)
 
-    if "sla" in query:
-        query.extend(["service", "level", "agreement"])
+    if "sla" in query or "slas" in query:
+        query.extend(["service", "level", "agreement", "agreements"])
 
     tokens = [tokenize(doc.page_content) for doc in documents]
     counts = [Counter(words) for words in tokens]

@@ -4,6 +4,7 @@ import os
 import json
 import logging
 import time
+import re
 from request_context import request_id_var
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -171,10 +172,28 @@ async def answer_questions(
         question = question.strip()
         retrieval_started = time.perf_counter()
 
-        matches = await vector_store.asimilarity_search(
-            question,
-            k=6,
-        )
+        parts = [
+            part.strip()
+            for part in re.split(r"(?<=\?)\s+", question)
+            if part.strip()
+        ]
+
+        queries = [question]
+        if len(parts) > 1:
+            queries.extend(parts[:2])
+
+        match_groups = []
+        for query in queries:
+            match_groups.append(
+                await vector_store.asimilarity_search(query, k=6)
+            )
+
+        matches = [
+            match
+            for group in zip_longest(*match_groups)
+            for match in group
+            if match is not None
+        ]
 
         rewritten_question = question
 
@@ -193,11 +212,17 @@ async def answer_questions(
                 for match in pair
                 if match is not None
             ]
-        keyword_matches = keyword_search(
-            keyword_documents,
-            question,
-            k=3,
-        )
+        keyword_groups = [
+            keyword_search(keyword_documents, query, k=3)
+            for query in queries
+        ]
+
+        keyword_matches = [
+            match
+            for group in zip_longest(*keyword_groups)
+            for match in group
+            if match is not None
+        ]
 
         matches = [
             match
@@ -245,7 +270,16 @@ async def answer_questions(
                     "yes unless every requested condition is supported. "
                     "For timing questions, report relevant event-based "
                     "conditions even when no numeric duration is provided. "
-                    "Preserve exceptions and report contradictions. "
+                    "For hosting-location questions, list each deployment "
+                    "separately with its explicitly stated primary region "
+                    "and secondary region, or state that no secondary is "
+                    "specified. Include every relevant deployment. "
+                    "Do not combine independent deployments into a backup "
+                    "list. Flag conflicting location descriptions without "
+                    "correcting them using outside knowledge. "
+                    "A documented process does not by itself establish "
+                    "specific criteria, deadlines, or guarantees. State "
+                    "only what the passages explicitly support. "
                     "For retention questions, report any supported retention "
                     "or deletion conditions, including service termination, "
                     "even when no fixed duration is stated. Distinguish a "

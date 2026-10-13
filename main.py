@@ -3,6 +3,7 @@ import logging
 import time
 import uuid
 import asyncio
+import traceback
 from request_context import bind_request_id
 from langchain_core.callbacks import get_usage_metadata_callback
 from json_validation import validate_json_depth
@@ -63,15 +64,15 @@ async def log_requests(request: Request, call_next):
             response.headers["X-Request-ID"] = request_id
             return response
 
-        except Exception:
-            request_logger.exception(
-                json.dumps({
-                    "event": "request_failed",
-                    "request_id": request_id,
-                    "method": request.method,
-                    "path": request.url.path,
-                })
-            )
+        except Exception as exc:
+            request_logger.error(json.dumps({
+                "event": "request_failed",
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "error_type": type(exc).__name__,
+                "traceback": traceback.format_exc(),
+            }))
 
             return JSONResponse(
                 status_code=500,

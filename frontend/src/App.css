@@ -68,3 +68,15 @@ pre {
 }
 
 :focus-visible { outline: 3px solid #8ba7ff; outline-offset: 3px; }
+
+.citations {
+  color: #59677d;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  margin-bottom: 16px;
+}
+
+.citations ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
