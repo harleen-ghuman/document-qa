@@ -15,6 +15,7 @@ cp .env.example .env
 ```
 
 Set `OPENAI_API_KEY` in `.env`. Do not commit API keys.
+Query rewriting is disabled by default to reduce latency and API cost. Set ENABLE_QUERY_REWRITE=true in .env to enable an additional retrieval query.
 
 ## Run with Docker
 
@@ -92,7 +93,7 @@ Example request:
 
 ```bash
 curl -X POST http://127.0.0.1:8001/api/answer \
-  -F "questions_file=@sample_questions.json" \
+  -F "questions_file=@samples/sample_questions.json" \
   -F "document_file=@report.pdf"
 ```
 
@@ -105,7 +106,8 @@ The default response contains ordered question-answer pairs:
   "results": [
     {
       "question": "Which cloud provider hosts the service?",
-      "answer": "The service is hosted on AWS."
+      "answer": "The service is hosted on AWS.",
+      "citations": [{"source": "document.json"}]
     }
   ]
 }
@@ -115,7 +117,7 @@ Set `include_evidence=true` to also return `chunk_count` and `retrieved_evidence
 
 ```bash
 curl -X POST "http://127.0.0.1:8001/api/answer?include_evidence=true" \
-  -F "questions_file=@sample_questions.json" \
+  -F "questions_file=@samples/sample_questions.json" \
   -F "document_file=@report.pdf"
 ```
 

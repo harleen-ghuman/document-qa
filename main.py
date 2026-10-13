@@ -147,7 +147,7 @@ async def answer(
     except RecursionError:
         raise HTTPException(
             status_code=400,
-            detail="Document JSON is nested too deeply.",
+            detail="Questions JSON is nested too deeply.",
         )
 
     if not isinstance(data, dict):

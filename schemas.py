@@ -1,5 +1,8 @@
 from pydantic import BaseModel, Field
 
+class Citation(BaseModel):
+    source: str
+    page: int | None = None
 
 class Evidence(BaseModel):
     source: str
@@ -10,6 +13,7 @@ class Evidence(BaseModel):
 class QuestionAnswer(BaseModel):
     question: str
     answer: str
+    citations: list[Citation] = Field(default_factory=list)
     retrieved_evidence: list[Evidence] | None = None
 
 

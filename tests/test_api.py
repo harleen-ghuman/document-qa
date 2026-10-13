@@ -126,7 +126,8 @@ def test_embedding_timeout_returns_504(monkeypatch):
     )
 
 def test_answers_every_question_in_order(monkeypatch):
-    async def fake_rewrite_question(question):
+    monkeypatch.setenv("ENABLE_QUERY_REWRITE", "true")
+    async def fake_rewrite_question(question, model):
         return question
 
     monkeypatch.setattr(
@@ -225,10 +226,11 @@ def test_answers_every_question_in_order(monkeypatch):
     assert len(concise_body["results"]) == len(questions)
 
     for item in concise_body["results"]:
-        assert set(item) == {"question", "answer"}
+        assert set(item) == {"question", "answer", "citations"}
+        assert item["citations"] == [{"source": "document.json"}]
 
 def test_keyword_evidence_reaches_model(monkeypatch):
-    async def fake_rewrite(question):
+    async def fake_rewrite(question, model):
         return question
 
     monkeypatch.setattr(qa_service, "rewrite_question", fake_rewrite)

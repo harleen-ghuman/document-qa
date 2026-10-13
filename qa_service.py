@@ -1,7 +1,6 @@
 from itertools import zip_longest
 import asyncio
-
-from langchain_core import messages
+import os
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
@@ -72,14 +71,7 @@ async def run_questions_bounded(questions, answer_one):
         await asyncio.gather(*tasks, return_exceptions=True)
         raise
 
-async def rewrite_question(question: str) -> str:
-    model = ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=0,
-        max_tokens=100,
-        timeout=30,
-        max_retries=1,
-    )
+async def rewrite_question(question: str, model) -> str:
 
     response = await model.ainvoke([
         SystemMessage(
@@ -163,6 +155,13 @@ async def answer_questions(
         method="json_schema",
         strict=True,
     )
+
+    pages_by_number = {
+        document.metadata["page"]: document
+        for document in documents
+        if "page" in document.metadata
+    }
+
     async def answer_one(question: str):
         question = question.strip()
 
@@ -171,7 +170,10 @@ async def answer_questions(
             k=6,
         )
 
-        rewritten_question = await rewrite_question(question)
+        rewritten_question = question
+
+        if os.getenv("ENABLE_QUERY_REWRITE", "false").lower() == "true":
+            rewritten_question = await rewrite_question(question, llm)
 
         if rewritten_question != question:
             additional_matches = await vector_store.asimilarity_search(
@@ -197,12 +199,6 @@ async def answer_questions(
             for match in pair
             if match is not None
         ]
-        # Expand matching PDF chunks to their original pages.
-        pages_by_number = {
-            document.metadata["page"]: document
-            for document in documents
-            if "page" in document.metadata
-        }
 
         expanded_matches = []
         seen = set()
@@ -265,15 +261,29 @@ async def answer_questions(
             question,
         )
 
-        return{
+        citations = []
+        seen_citations = set()
+
+        for passage_id in response.supporting_passage_ids:
+            match = matches[passage_id - 1]
+            source = match.metadata.get("source", source_name)
+            page = match.metadata.get("page")
+            key = (source, page)
+
+            if key not in seen_citations:
+                seen_citations.add(key)
+                citations.append({
+                    "source": source,
+                    "page": page,
+                })
+
+        return {
             "question": question,
             "answer": response.answer,
+            "citations": citations,
             "retrieved_evidence": [
                 {
-                    "source": match.metadata.get(
-                        "source",
-                        source_name,
-                        ),
+                    "source": match.metadata.get("source", source_name),
                     "page": match.metadata.get("page"),
                     "text": match.page_content,
                 }
