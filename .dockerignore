@@ -1,0 +1,10 @@
+.git/
+.venv/
+.venv-check/
+.env
+.env.*
+__pycache__/
+.pytest_cache/
+*.pdf
+*.xlsx
+retrieval_check.json

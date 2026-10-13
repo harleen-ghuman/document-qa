@@ -1,4 +1,7 @@
 import json
+import logging
+import time
+import uuid
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from schemas import AnswerResponse
 from document_parser import parse_document
@@ -16,6 +19,43 @@ from openai import (
 
 load_dotenv()
 app = FastAPI(title="Zania Document QA")
+
+request_logger = logging.getLogger("zania.requests")
+request_logger.setLevel(logging.INFO)
+request_logger.propagate = False
+
+if not request_logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    request_logger.addHandler(handler)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    request_id = uuid.uuid4().hex
+    started = time.perf_counter()
+    status_code = 500
+
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        request_logger.info(
+            json.dumps({
+                "event": "http_request",
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": round(
+                    (time.perf_counter() - started) * 1000,
+                    2,
+                    ),
+            })
+        )
+
 MAX_QUESTIONS = 20
 MAX_QUESTION_LENGTH = 1000
 MAX_QUESTIONS_BYTES = 100_000
