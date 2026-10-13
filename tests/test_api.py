@@ -121,6 +121,15 @@ def test_embedding_timeout_returns_504(monkeypatch):
     )
 
 def test_answers_every_question_in_order(monkeypatch):
+    async def fake_rewrite_question(question):
+        return question
+
+    monkeypatch.setattr(
+        main,
+        "rewrite_question",
+        fake_rewrite_question,
+    )
+
     monkeypatch.setattr(
         "main.OpenAIEmbeddings",
         lambda **kwargs: object(),
@@ -146,10 +155,12 @@ def test_answers_every_question_in_order(monkeypatch):
     )
 
     class FakeChatModel:
+        def with_structured_output(self, *args, **kwargs):
+            return self
         async def ainvoke(self, messages):
             model_calls.append(messages)
             return SimpleNamespace(
-                content=f"Answer {len(model_calls)}"
+                answer=f"Answer {len(model_calls)}"
             )
 
     monkeypatch.setattr(
@@ -161,6 +172,12 @@ def test_answers_every_question_in_order(monkeypatch):
         "Which provider?",
         "What is the SLA?",
     ]
+
+    monkeypatch.setattr(
+        main,
+        "keyword_search",
+        lambda *args, **kwargs: [],
+    )
 
     response = upload(
         json.dumps({"questions": questions}).encode()
@@ -191,3 +208,62 @@ def test_answers_every_question_in_order(monkeypatch):
 
     for messages in model_calls:
         assert "The company uses AWS." in messages[1].content
+
+def test_keyword_evidence_reaches_model(monkeypatch):
+    async def fake_rewrite(question):
+        return question
+
+    monkeypatch.setattr(main, "rewrite_question", fake_rewrite)
+    monkeypatch.setattr(
+        "main.OpenAIEmbeddings",
+        lambda **kwargs: object(),
+    )
+
+    class FakeStore:
+        async def asimilarity_search(self, question, k):
+            return []
+
+    async def fake_index(*args, **kwargs):
+        return FakeStore()
+
+    monkeypatch.setattr(
+        main.QdrantVectorStore,
+        "afrom_texts",
+        fake_index,
+    )
+
+    monkeypatch.setattr(
+        main,
+        "keyword_search",
+        lambda *args, **kwargs: [
+            Document(
+                page_content="Notify customers without undue delay.",
+                metadata={"source": "document.json"},
+            )
+        ],
+    )
+
+    class FakeModel:
+        def with_structured_output(self, *args, **kwargs):
+            return self
+        async def ainvoke(self, messages):
+            assert "Notify customers without undue delay." in (
+                messages[1].content
+            )
+            return SimpleNamespace(answer="Without undue delay.")
+
+    monkeypatch.setattr(
+        "main.ChatOpenAI",
+        lambda **kwargs: FakeModel(),
+    )
+
+    response = upload(
+        json.dumps({"questions": ["Notification timing?"]}).encode()
+    )
+
+    assert response.status_code == 200
+    result = response.json()["results"][0]
+    assert result["answer"] == "Without undue delay."
+    assert result["retrieved_evidence"][0]["text"] == (
+        "Notify customers without undue delay."
+    )
