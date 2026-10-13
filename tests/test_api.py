@@ -10,9 +10,14 @@ from langchain_core.documents import Document
 client = TestClient(main.app)
 
 
-def upload(questions_content, document_content=b'{"cloud_provider":"AWS"}'):
+def upload(
+        questions_content,
+        document_content=b'{"cloud_provider":"AWS"}',
+        include_evidence=True,
+):
     return client.post(
         "/api/answer",
+        params={"include_evidence": include_evidence},
         files={
             "questions_file": (
                 "questions.json",
@@ -201,13 +206,25 @@ def test_answers_every_question_in_order(monkeypatch):
         assert result["retrieved_evidence"] == [
             {
                 "source": "document.json",
-                "page": None,
                 "text": "The company uses AWS.",
             }
         ]
 
-    for messages in model_calls:
-        assert "The company uses AWS." in messages[1].content
+        for messages in model_calls:
+            assert "The company uses AWS." in messages[1].content
+
+    concise_response = upload(
+        json.dumps({"questions": questions}).encode(),
+        include_evidence=False,
+    )
+
+    assert concise_response.status_code == 200
+    concise_body = concise_response.json()
+    assert "chunk_count" not in concise_body
+    assert len(concise_body["results"]) == len(questions)
+
+    for item in concise_body["results"]:
+        assert set(item) == {"question", "answer"}
 
 def test_keyword_evidence_reaches_model(monkeypatch):
     async def fake_rewrite(question):

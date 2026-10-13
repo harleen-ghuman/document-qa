@@ -62,10 +62,11 @@ def health():
     return {"status": "UP"}
 
 
-@app.post("/api/answer", response_model=AnswerResponse)
+@app.post("/api/answer", response_model=AnswerResponse, response_model_exclude_none=True,)
 async def answer(
         questions_file: UploadFile = File(...),
         document_file: UploadFile = File(...),
+        include_evidence: bool = False,
 ):
     content = await questions_file.read(MAX_QUESTIONS_BYTES + 1)
 
@@ -129,11 +130,18 @@ async def answer(
         filename=document_file.filename or "",
     )
 
-    return await answer_questions(
+    result = await answer_questions(
         documents=documents,
         questions=questions,
         source_name=document_file.filename or "uploaded-document",
     )
+
+    if not include_evidence:
+        result.pop("chunk_count", None)
+        for item in result["results"]:
+            item.pop("retrieved_evidence", None)
+
+    return result
 
 
 

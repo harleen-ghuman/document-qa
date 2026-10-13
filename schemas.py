@@ -10,11 +10,11 @@ class Evidence(BaseModel):
 class QuestionAnswer(BaseModel):
     question: str
     answer: str
-    retrieved_evidence: list[Evidence]
+    retrieved_evidence: list[Evidence] | None = None
 
 
 class AnswerResponse(BaseModel):
-    chunk_count: int
+    chunk_count: int | None = None
     results: list[QuestionAnswer]
 
 class GroundedAnswer(BaseModel):
