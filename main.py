@@ -2,6 +2,10 @@ import json
 import logging
 import time
 import uuid
+import asyncio
+from pathlib import Path
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from schemas import AnswerResponse
 from document_parser import parse_document
@@ -19,6 +23,19 @@ from openai import (
 
 load_dotenv()
 app = FastAPI(title="Zania Document QA")
+
+FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
+
+if FRONTEND_DIST.is_dir():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=FRONTEND_DIST / "assets"),
+        name="frontend-assets",
+    )
+
+    @app.get("/", include_in_schema=False)
+    async def home():
+        return FileResponse(FRONTEND_DIST / "index.html")
 
 request_logger = logging.getLogger("zania.requests")
 request_logger.setLevel(logging.INFO)
@@ -165,7 +182,8 @@ async def answer(
             detail="Document exceeds the 10 MB limit.",
         )
 
-    documents = parse_document(
+    documents = await asyncio.to_thread(
+        parse_document,
         content=document_content,
         filename=document_file.filename or "",
     )

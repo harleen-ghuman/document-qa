@@ -1,5 +1,5 @@
 from itertools import zip_longest
-
+import asyncio
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
@@ -10,6 +10,29 @@ from schemas import GroundedAnswer
 
 
 MAX_QUESTION_LENGTH = 1000
+
+MAX_CONCURRENT_QUESTIONS = 3
+
+
+async def run_questions_bounded(questions, answer_one):
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_QUESTIONS)
+
+    async def run_one(question):
+        async with semaphore:
+            return await answer_one(question)
+
+    tasks = [
+        asyncio.create_task(run_one(question))
+        for question in questions
+    ]
+
+    try:
+        return await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
 
 async def rewrite_question(question: str) -> str:
     model = ChatOpenAI(
@@ -83,9 +106,7 @@ async def answer_questions(
         method="json_schema",
         strict=True,
     )
-    results = []
-
-    for question in questions:
+    async def answer_one(question: str):
         question = question.strip()
 
         matches = await vector_store.asimilarity_search(
@@ -183,7 +204,7 @@ async def answer_questions(
             ),
         ])
 
-        results.append({
+        return{
             "question": question,
             "answer": response.answer,
             "retrieved_evidence": [
@@ -197,7 +218,11 @@ async def answer_questions(
                 }
                 for match in matches
             ],
-        })
+        }
+    results = await run_questions_bounded(
+        questions,
+        answer_one,
+    )
 
     return {
         "chunk_count": len(chunks),

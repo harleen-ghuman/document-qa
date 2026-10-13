@@ -1,0 +1,5 @@
+{
+  "cloud_provider": "AWS",
+  "primary_region": "us-east-1",
+  "notification_policy": "Notify customers without undue delay."
+}
