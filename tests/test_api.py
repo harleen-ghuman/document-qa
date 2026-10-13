@@ -355,3 +355,111 @@ def test_processing_deadline_returns_504(monkeypatch):
         "Document processing timed out. "
         "Try a smaller document or fewer questions."
     )
+
+def test_unexpected_error_returns_500_with_request_id(monkeypatch):
+    async def failing_answer(*args, **kwargs):
+        raise RuntimeError("Internal failure details")
+
+    monkeypatch.setattr(main, "answer_questions", failing_answer)
+
+    response = upload(
+        json.dumps({"questions": ["Which provider?"]}).encode()
+    )
+
+    assert response.status_code == 500
+
+    body = response.json()
+    assert body["detail"] == "An unexpected error occurred."
+    assert body["request_id"]
+    assert response.headers["X-Request-ID"] == body["request_id"]
+    assert "Internal failure details" not in response.text
+
+def test_multipart_question_retrieves_evidence_for_both_parts(monkeypatch):
+    monkeypatch.setenv("ENABLE_QUERY_REWRITE", "false")
+
+    first_part = "Which provider hosts the service?"
+    second_part = "What is the notification deadline?"
+    question = f"{first_part} {second_part}"
+
+    provider = Document(
+        page_content="The service is hosted on AWS.",
+        metadata={"source": "document.json"},
+    )
+    notification = Document(
+        page_content="Customers are notified without undue delay.",
+        metadata={"source": "document.json"},
+    )
+
+    searched_queries = []
+
+    class FakeStore:
+        async def asimilarity_search(self, query, k):
+            searched_queries.append(query)
+            if query == first_part:
+                return [provider]
+            if query == second_part:
+                return [notification]
+            return []
+
+    async def fake_index(*args, **kwargs):
+        return FakeStore()
+
+    monkeypatch.setattr(
+        qa_service.QdrantVectorStore,
+        "afrom_texts",
+        fake_index,
+    )
+    monkeypatch.setattr(
+        qa_service,
+        "OpenAIEmbeddings",
+        lambda **kwargs: object(),
+    )
+    monkeypatch.setattr(
+        qa_service,
+        "keyword_search",
+        lambda *args, **kwargs: [],
+    )
+
+    def unexpected_rewrite(*args, **kwargs):
+        raise AssertionError("Rewriting must stay disabled.")
+
+    monkeypatch.setattr(
+        qa_service,
+        "rewrite_question",
+        unexpected_rewrite,
+    )
+
+    class FakeModel:
+        def with_structured_output(self, *args, **kwargs):
+            return self
+
+        async def ainvoke(self, messages):
+            context = messages[1].content
+            assert provider.page_content in context
+            assert notification.page_content in context
+            return SimpleNamespace(
+                supporting_passage_ids=[1, 2],
+                answer="AWS; customers are notified without undue delay.",
+            )
+
+    monkeypatch.setattr(
+        qa_service,
+        "ChatOpenAI",
+        lambda **kwargs: FakeModel(),
+    )
+
+    response = upload(
+        json.dumps({"questions": [question]}).encode()
+    )
+
+    assert response.status_code == 200
+    assert searched_queries == [question, first_part, second_part]
+
+    result = response.json()["results"][0]
+    assert result["question"] == question
+    assert result["answer"] == (
+        "AWS; customers are notified without undue delay."
+    )
+    assert {
+               item["text"] for item in result["retrieved_evidence"]
+           } == {provider.page_content, notification.page_content}

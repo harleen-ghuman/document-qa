@@ -1,18 +1,8 @@
 {
   "results": [
     {
-      "question": "Which cloud provider does the company use?",
-      "answer": "OneTrust utilizes Amazon Web Services, Inc. (AWS) cloud hosting services to provide the resources to host the Certification Automation system.",
-      "citations": [
-        {
-          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
-          "page": 13
-        }
-      ]
-    },
-    {
-      "question": "What is the incident notification SLA?",
-      "answer": "OneTrust will inform customers without undue delay if it becomes aware of a security breach and provide reasonable information and cooperation to the customer. However, the specific incident notification SLA is not detailed in the provided passages.",
+      "question": "Do you have formally defined criteria for notifying a client during an incident that might impact the security of their data or systems? What are your SLAs for notification?",
+      "answer": "OneTrust commits to inform customers without undue delay if it becomes aware of a security breach and to provide reasonable information and cooperation to the customer. However, specific SLAs for notification are not detailed in the provided passages.",
       "citations": [
         {
           "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
@@ -21,8 +11,32 @@
       ]
     },
     {
-      "question": "What are the primary and backup hosting regions?",
-      "answer": "The primary hosting region is US-EAST-1 (N. Virginia) and the backup region is US-WEST-2 (Oregon). In the EU, the primary region is EU-CENTRAL-1 (Frankfurt) and the backup region is EU-WEST-1 (Ireland).",
+      "question": "Is personal information transmitted, processed, stored, or disclosed to or retained by third parties? If yes, describe.",
+      "answer": "The Certification Automation system collects user information, which typically includes the name and e-mail address assigned to the system to create a user account. Data is not utilized or disclosed to third parties outside of the scope allowed in contracts and agreements. However, the system may collect data from other enterprise systems but only via partner APIs and authorized users.",
+      "citations": [
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 18
+        }
+      ]
+    },
+    {
+      "question": "Which cloud providers do you rely on?",
+      "answer": "OneTrust relies on Amazon Web Services, Inc. (AWS) for cloud hosting services. Additionally, the Certification Automation system integrates with other cloud services including Google Cloud Platform, Heroku, and Microsoft Azure.",
+      "citations": [
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 13
+        },
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 11
+        }
+      ]
+    },
+    {
+      "question": "Please specify the primary data center location/region of the underlying cloud infrastructure used to host the service(s) as well as the backup location(s).",
+      "answer": "The primary data center location for the Certification Automation system is in the US-EAST-1 (N. Virginia) region, with a secondary backup location in US-WEST-2 (Oregon). Additionally, there is another U.S. region in CA-CENTRAL-1 (California) with no secondary region specified. In the EU, the primary region is EU-CENTRAL-1 (Frankfurt) with a secondary region in EU-WEST-1 (Ireland).",
       "citations": [
         {
           "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
@@ -31,12 +45,20 @@
       ]
     },
     {
-      "question": "How long does the company retain customer data?",
-      "answer": "OneTrust will promptly destroy customer confidential data upon termination of the services. However, the specific duration for which customer data is retained before termination is not specified.",
+      "question": "Which of the following, if any, are performed as part of your monitoring process for the service: Application Performance Monitoring (APM), End User Monitoring (EUM), Digital Experience Monitoring (DEM)?",
+      "answer": "The passages do not explicitly mention Application Performance Monitoring (APM), End User Monitoring (EUM), or Digital Experience Monitoring (DEM) as part of the monitoring process. However, they describe various monitoring activities such as system performance monitoring, customer communications monitoring, and incident response monitoring. Specific details about APM, EUM, or DEM are not provided, leaving those aspects unspecified.",
       "citations": [
         {
           "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
-          "page": 12
+          "page": 14
+        },
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 23
+        },
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 17
         }
       ]
     }
