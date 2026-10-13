@@ -1,5 +1,5 @@
 import json
-
+import qa_service
 import main
 import httpx
 from openai import APITimeoutError
@@ -92,7 +92,7 @@ def test_document_file_too_large(monkeypatch):
 def test_embedding_timeout_returns_504(monkeypatch):
     # Replace the real embedding client.
     monkeypatch.setattr(
-        "main.OpenAIEmbeddings",
+        "qa_service.OpenAIEmbeddings",
         lambda **kwargs: object(),
     )
 
@@ -106,7 +106,7 @@ def test_embedding_timeout_returns_504(monkeypatch):
         )
 
     monkeypatch.setattr(
-        main.QdrantVectorStore,
+        qa_service.QdrantVectorStore,
         "afrom_texts",
         fake_afrom_texts,
     )
@@ -125,13 +125,13 @@ def test_answers_every_question_in_order(monkeypatch):
         return question
 
     monkeypatch.setattr(
-        main,
+        qa_service,
         "rewrite_question",
         fake_rewrite_question,
     )
 
     monkeypatch.setattr(
-        "main.OpenAIEmbeddings",
+        "qa_service.OpenAIEmbeddings",
         lambda **kwargs: object(),
     )
 
@@ -149,7 +149,7 @@ def test_answers_every_question_in_order(monkeypatch):
         return FakeVectorStore()
 
     monkeypatch.setattr(
-        main.QdrantVectorStore,
+        qa_service.QdrantVectorStore,
         "afrom_texts",
         fake_afrom_texts,
     )
@@ -164,7 +164,7 @@ def test_answers_every_question_in_order(monkeypatch):
             )
 
     monkeypatch.setattr(
-        "main.ChatOpenAI",
+        "qa_service.ChatOpenAI",
         lambda **kwargs: FakeChatModel(),
     )
 
@@ -174,7 +174,7 @@ def test_answers_every_question_in_order(monkeypatch):
     ]
 
     monkeypatch.setattr(
-        main,
+        qa_service,
         "keyword_search",
         lambda *args, **kwargs: [],
     )
@@ -213,9 +213,9 @@ def test_keyword_evidence_reaches_model(monkeypatch):
     async def fake_rewrite(question):
         return question
 
-    monkeypatch.setattr(main, "rewrite_question", fake_rewrite)
+    monkeypatch.setattr(qa_service, "rewrite_question", fake_rewrite)
     monkeypatch.setattr(
-        "main.OpenAIEmbeddings",
+        "qa_service.OpenAIEmbeddings",
         lambda **kwargs: object(),
     )
 
@@ -227,13 +227,13 @@ def test_keyword_evidence_reaches_model(monkeypatch):
         return FakeStore()
 
     monkeypatch.setattr(
-        main.QdrantVectorStore,
+        qa_service.QdrantVectorStore,
         "afrom_texts",
         fake_index,
     )
 
     monkeypatch.setattr(
-        main,
+        qa_service,
         "keyword_search",
         lambda *args, **kwargs: [
             Document(
@@ -253,7 +253,7 @@ def test_keyword_evidence_reaches_model(monkeypatch):
             return SimpleNamespace(answer="Without undue delay.")
 
     monkeypatch.setattr(
-        "main.ChatOpenAI",
+        "qa_service.ChatOpenAI",
         lambda **kwargs: FakeModel(),
     )
 
