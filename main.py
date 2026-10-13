@@ -3,6 +3,7 @@ import logging
 import time
 import uuid
 import asyncio
+from request_context import bind_request_id
 from langchain_core.callbacks import get_usage_metadata_callback
 from json_validation import validate_json_depth
 from pathlib import Path
@@ -55,12 +56,31 @@ async def log_requests(request: Request, call_next):
     started = time.perf_counter()
     status_code = 500
 
-    with get_usage_metadata_callback() as usage:
+    with bind_request_id(request_id), get_usage_metadata_callback() as usage:
         try:
             response = await call_next(request)
             status_code = response.status_code
             response.headers["X-Request-ID"] = request_id
             return response
+
+        except Exception:
+            request_logger.exception(
+                json.dumps({
+                    "event": "request_failed",
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                })
+            )
+
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "detail": "An unexpected error occurred.",
+                    "request_id": request_id,
+                },
+                headers={"X-Request-ID": request_id},
+            )
         finally:
             token_usage = list(usage.usage_metadata.values())
 

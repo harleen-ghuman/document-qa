@@ -44,7 +44,7 @@ def parse_document(content: bytes, filename: str) -> list[Document]:
             )
         ]
 
-    elif extension.endswith(".pdf"):
+    elif extension.endswith(".pdf") or content.startswith(b"%PDF-"):
         try:
             reader = PdfReader(BytesIO(content))
 

@@ -1,0 +1,44 @@
+{
+  "results": [
+    {
+      "question": "Which cloud provider does the company use?",
+      "answer": "OneTrust utilizes Amazon Web Services, Inc. (AWS) cloud hosting services to provide the resources to host the Certification Automation system.",
+      "citations": [
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 13
+        }
+      ]
+    },
+    {
+      "question": "What is the incident notification SLA?",
+      "answer": "OneTrust will inform customers without undue delay if it becomes aware of a security breach and provide reasonable information and cooperation to the customer. However, the specific incident notification SLA is not detailed in the provided passages.",
+      "citations": [
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 12
+        }
+      ]
+    },
+    {
+      "question": "What are the primary and backup hosting regions?",
+      "answer": "The primary hosting region is US-EAST-1 (N. Virginia) and the backup region is US-WEST-2 (Oregon). In the EU, the primary region is EU-CENTRAL-1 (Frankfurt) and the backup region is EU-WEST-1 (Ireland).",
+      "citations": [
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 13
+        }
+      ]
+    },
+    {
+      "question": "How long does the company retain customer data?",
+      "answer": "OneTrust will promptly destroy customer confidential data upon termination of the services. However, the specific duration for which customer data is retained before termination is not specified.",
+      "citations": [
+        {
+          "source": "ot-onetrust-certification-automation-2025-soc2-type-2-report.pdf",
+          "page": 12
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import os
 import json
 import logging
 import time
+from request_context import request_id_var
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
@@ -245,6 +246,14 @@ async def answer_questions(
                     "For timing questions, report relevant event-based "
                     "conditions even when no numeric duration is provided. "
                     "Preserve exceptions and report contradictions. "
+                    "For retention questions, report any supported retention "
+                    "or deletion conditions, including service termination, "
+                    "even when no fixed duration is stated. Distinguish a "
+                    "deletion commitment from a numeric retention period. "
+                    "Do not infer that all customer data is retained until "
+                    "termination merely because deletion upon termination "
+                    "is promised. Report the deletion commitment separately "
+                    "from any unspecified retention duration. "
                     "If no passage answers any part of the question, return "
                     "an empty supporting_passage_ids list and answer exactly: "
                     "Not found in the provided document. "
@@ -277,6 +286,7 @@ async def answer_questions(
 
         qa_logger.info(json.dumps({
             "event": "question_answered",
+            "request_id": request_id_var.get(),
             "retrieval_ms": round(retrieval_ms, 2),
             "generation_ms": round(generation_ms, 2),
             "passage_count": len(matches),
