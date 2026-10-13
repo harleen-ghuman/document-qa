@@ -166,13 +166,18 @@ async def answer(
             detail="Questions JSON is nested too deeply.",
         )
 
-    if not isinstance(data, dict):
+    if isinstance(data, dict):
+        questions = data.get("questions")
+    elif isinstance(data, list):
+        questions = data
+    else:
         raise HTTPException(
             status_code=400,
-            detail="Questions file must contain a JSON object.",
+            detail=(
+                "Questions file must contain a JSON object "
+                "with 'questions' or a JSON list."
+            ),
         )
-
-    questions = data.get("questions")
 
     if not isinstance(questions, list) or not questions:
         raise HTTPException(

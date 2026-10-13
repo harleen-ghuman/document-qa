@@ -67,7 +67,7 @@ Upload a PDF or JSON source document, then type one question or upload a questio
 
 Accepts two multipart files:
 
-- `questions_file`: a JSON object containing a non-empty list of question strings.
+- `questions_file`: a JSON object with a `questions` list, or a bare JSON list of question strings. The list must be non-empty.
 - `document_file`: a JSON or PDF source document.
 
 Example questions file:

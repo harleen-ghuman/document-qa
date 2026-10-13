@@ -216,7 +216,7 @@ def test_answers_every_question_in_order(monkeypatch):
             assert "The company uses AWS." in messages[1].content
 
     concise_response = upload(
-        json.dumps({"questions": questions}).encode(),
+        json.dumps(questions).encode(),
         include_evidence=False,
     )
 
