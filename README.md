@@ -1,4 +1,4 @@
-# Zania Document QA
+# Document QA
 
 A question-answering service for PDF and JSON documents. Upload a document and a list of questions to get answers with source citations. Built with FastAPI, LangChain, OpenAI (`gpt-4o-mini`), an in-memory Qdrant vector store, and a React frontend.
 
@@ -11,8 +11,8 @@ cp .env.example .env
 Set `OPENAI_API_KEY` in `.env`. Never commit API keys.
 
 ```bash
-docker build -t zania-document-qa .
-docker run --rm --env-file .env -p 127.0.0.1:8001:8000 zania-document-qa
+docker build -t document-qa .
+docker run --rm --env-file .env -p 127.0.0.1:8001:8000 document-qa
 ```
 
 - UI: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)

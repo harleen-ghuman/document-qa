@@ -99,7 +99,7 @@ export default function App() {
   return (
       <main className="container">
         <header>
-          <span className="badge">Zania · Document Q&A</span>
+          <span className="badge">Document Q&A</span>
           <h1>Ask your document.</h1>
           <p>Upload a PDF or JSON document and get answers with evidence.</p>
         </header>

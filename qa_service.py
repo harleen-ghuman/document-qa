@@ -22,7 +22,7 @@ MAX_CONCURRENT_QUESTIONS = 3
 MAX_CHUNKS = 1000
 MAX_CONTEXT_CHARACTERS = 24_000
 MAX_PASSAGE_CHARACTERS = 6_000
-qa_logger = logging.getLogger("zania.requests")
+qa_logger = logging.getLogger("document_qa.requests")
 
 
 def limit_evidence(matches: list[Document]) -> list[Document]:

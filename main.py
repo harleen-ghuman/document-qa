@@ -26,7 +26,7 @@ from openai import (
 
 
 load_dotenv()
-app = FastAPI(title="Zania Document QA")
+app = FastAPI(title="Document QA")
 
 FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
 
@@ -41,7 +41,7 @@ if FRONTEND_DIST.is_dir():
     async def home():
         return FileResponse(FRONTEND_DIST / "index.html")
 
-request_logger = logging.getLogger("zania.requests")
+request_logger = logging.getLogger("document_qa.requests")
 request_logger.setLevel(logging.INFO)
 request_logger.propagate = False
 
