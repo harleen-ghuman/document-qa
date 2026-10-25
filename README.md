@@ -85,7 +85,7 @@ Example response, with answers in input order:
 - When no supporting passage is identified, the answer is `Not found in the provided document.` with empty `citations`.
 - Citation pages use PDF file order, starting at 1. JSON sources have no page number.
 
-[Sample output](samples/sample_output.json) contains the actual response to the five challenge questions against the OneTrust SOC 2 report.
+[Sample output](samples/sample_output.json) shows a real response to the sample questions.
 
 ## How it works
 

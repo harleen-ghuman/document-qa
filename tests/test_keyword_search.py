@@ -28,7 +28,7 @@ def test_relevant_document_ranks_first_and_respects_limit():
     assert matches == [relevant]
 
 
-def test_sla_expansion_finds_full_phrase():
+def test_acronym_expansion_finds_full_phrase():
     relevant = Document(
         page_content="The service level agreement defines notification."
     )
@@ -37,6 +37,47 @@ def test_sla_expansion_finds_full_phrase():
     matches = keyword_search(
         [unrelated, relevant],
         "SLA",
+        k=1,
+    )
+
+    assert matches == [relevant]
+
+
+def test_acronym_expansion_works_for_any_acronym():
+    relevant = Document(
+        page_content="Our recovery point objective is four hours."
+    )
+    unrelated = Document(page_content="Lunch is served at noon.")
+
+    matches = keyword_search(
+        [unrelated, relevant],
+        "What is the RPO?",
+        k=1,
+    )
+
+    assert matches == [relevant]
+
+
+def test_acronym_present_in_document_is_not_expanded():
+    with_acronym = Document(page_content="The API returns JSON.")
+    phrase_only = Document(page_content="An apple pie is ready.")
+
+    matches = keyword_search(
+        [phrase_only, with_acronym],
+        "API",
+        k=2,
+    )
+
+    assert matches == [with_acronym]
+
+
+def test_plural_and_singular_forms_match():
+    relevant = Document(page_content="Signed agreements are archived.")
+    unrelated = Document(page_content="The office opens on Monday.")
+
+    matches = keyword_search(
+        [unrelated, relevant],
+        "agreement",
         k=1,
     )
 
